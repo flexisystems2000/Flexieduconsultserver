@@ -5,61 +5,62 @@ require('dotenv').config();
 
 const app = express();
 
-// --- CRITICAL CORS UPDATE ---
-// This allows local files, mobile browsers, and any domain to talk to your server
+// Comprehensive CORS for mobile and local file access
 app.use(cors({
-    origin: '*', 
+    origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type']
 }));
 
 app.use(express.json());
 
-// Health Check Route
+// Health Check
 app.get('/', (req, res) => {
-    res.send('flexieduconsult Server is Running and Healthy! ✅');
+    res.send('Flexi Server is Running and Healthy! ✅');
 });
 
 // Gemini Explanation Route
 app.post('/explain', async (req, res) => {
-    // Log incoming requests to Render console for debugging
-    console.log("Incoming request for AI explanation...");
-
+    console.log("AI Request received...");
+    
     try {
         const { prompt } = req.body;
-
-        if (!prompt) {
-            return res.status(400).json({ error: "Prompt is required" });
-        }
-
         if (!process.env.GEMINI_API_KEY) {
-            console.error("API KEY MISSING");
-            return res.status(500).json({ error: "Server API Key not configured" });
+            return res.status(500).json({ error: "API Key is missing in Render environment." });
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        // This version is more compatible with the v1 API requirements
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1beta' });
         
-        
-        const result = await model.generateContent(prompt);
+        let result;
+        try {
+            // Attempt 1: Using the latest 1.5 Flash model
+            console.log("Attempting Gemini 1.5 Flash...");
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            result = await model.generateContent(prompt);
+        } catch (firstError) {
+            console.warn("Flash failed, attempting Gemini Pro fallback...");
+            // Attempt 2: Fallback to the stable Pro model
+            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+            result = await model.generateContent(prompt);
+        }
+
         const response = await result.response;
         const text = response.text();
 
-        console.log("AI Response successful");
+        console.log("AI Explanation generated successfully.");
         res.json({ text });
 
-    } catch (error) {
-        console.error("Gemini Error:", error.message);
+    } catch (finalError) {
+        console.error("Critical Gemini Error:", finalError.message);
         res.status(500).json({ 
-            error: "AI failed to respond", 
-            details: error.message 
+            error: "AI Service Unavailable", 
+            details: finalError.message 
         });
     }
 });
 
-// Port & Host Configuration
+// Bind to 0.0.0.0 for Render
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ flexieduconsult Server active on port ${PORT}`);
+    console.log(`✅ Flexieduconsult Server active on port ${PORT}`);
 });
