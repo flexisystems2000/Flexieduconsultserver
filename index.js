@@ -38,7 +38,9 @@ app.post('/explain', async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // This version is more compatible with the v1 API requirements
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1beta' });
+        
         
         const result = await model.generateContent(prompt);
         const response = await result.response;
