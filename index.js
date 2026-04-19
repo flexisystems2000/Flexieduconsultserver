@@ -5,22 +5,36 @@ require('dotenv').config();
 
 const app = express();
 
-// Middleware
-app.use(cors()); 
+// --- CRITICAL CORS UPDATE ---
+// This allows local files, mobile browsers, and any domain to talk to your server
+app.use(cors({
+    origin: '*', 
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
-// 1. Health Check Route (Helps Render see the app is live)
+// Health Check Route
 app.get('/', (req, res) => {
-    res.send('Flexi Server is Running and Healthy! ✅');
+    res.send('flexieduconsult Server is Running and Healthy! ✅');
 });
 
-// 2. Gemini Explanation Route
+// Gemini Explanation Route
 app.post('/explain', async (req, res) => {
+    // Log incoming requests to Render console for debugging
+    console.log("Incoming request for AI explanation...");
+
     try {
         const { prompt } = req.body;
 
+        if (!prompt) {
+            return res.status(400).json({ error: "Prompt is required" });
+        }
+
         if (!process.env.GEMINI_API_KEY) {
-            return res.status(500).json({ error: "API Key missing on server environment" });
+            console.error("API KEY MISSING");
+            return res.status(500).json({ error: "Server API Key not configured" });
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -30,15 +44,20 @@ app.post('/explain', async (req, res) => {
         const response = await result.response;
         const text = response.text();
 
+        console.log("AI Response successful");
         res.json({ text });
+
     } catch (error) {
-        console.error("Gemini Error:", error);
-        res.status(500).json({ error: "AI failed to respond", details: error.message });
+        console.error("Gemini Error:", error.message);
+        res.status(500).json({ 
+            error: "AI failed to respond", 
+            details: error.message 
+        });
     }
 });
 
-// 3. Port & Host Configuration (Critical for Render)
+// Port & Host Configuration
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Flexi Server active on port ${PORT}`);
+    console.log(`✅ flexieduconsult Server active on port ${PORT}`);
 });
